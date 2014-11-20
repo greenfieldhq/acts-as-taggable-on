@@ -169,8 +169,7 @@ module ActsAsTaggableOn::Taggable
             order_by << "(SELECT count(*) FROM #{tagging_cond}) desc"
           end
         else
-          tags = ActsAsTaggableOn::Tag.named_any(tag_list)
-
+          tags = ActsAsTaggableOn::Tag.named_any(tag_list, options[:context])
           return empty_result unless tags.length == tag_list.length
 
           tags.each do |tag|
@@ -217,7 +216,12 @@ module ActsAsTaggableOn::Taggable
 
           group_columns = ActsAsTaggableOn::Utils.using_postgresql? ? grouped_column_names_for(self) : "#{table_name}.#{primary_key}"
           group = group_columns
-          having = "COUNT(#{taggings_alias}.taggable_id) = #{tags.size}"
+          # if we are passing context, we want to match against any stories that have all tags passed in, but could have more
+          if options[:context].present?
+            having = "COUNT(#{taggings_alias}.taggable_id) >= #{tags.size}"
+          else
+            having = "COUNT(#{taggings_alias}.taggable_id) = #{tags.size}"
+          end
         end
 
         order_by << options[:order] if options[:order].present?
@@ -432,7 +436,7 @@ module ActsAsTaggableOn::Taggable
       tag_lists = tag_types.map {|tags_type| "#{tags_type.to_s.singularize}_list"}
       super.delete_if {|attr| tag_lists.include? attr }
     end
-    
+
     ##
     # Override this hook if you wish to subclass {ActsAsTaggableOn::Tag} --
     # context is provided so that you may conditionally use a Tag subclass

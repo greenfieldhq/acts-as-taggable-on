@@ -31,9 +31,9 @@ module ActsAsTaggableOn
       end
     end
 
-    def self.named_any(list)
+    def self.named_any(list, context = nil)
       clause = list.map { |tag|
-        sanitize_sql_for_named_any(tag).force_encoding('BINARY')
+        sanitize_sql_for_named_any(tag, context).force_encoding('BINARY')
       }.join(' OR ')
       where(clause)
     end
@@ -129,11 +129,15 @@ module ActsAsTaggableOn
         end
       end
 
-      def sanitize_sql_for_named_any(tag)
+      def sanitize_sql_for_named_any(tag, context = nil)
         if ActsAsTaggableOn.strict_case_match
           sanitize_sql(["name = #{binary}?", as_8bit_ascii(tag)])
         else
-          sanitize_sql(['LOWER(name) = LOWER(?)', as_8bit_ascii(unicode_downcase(tag))])
+          if context.present?
+            sanitize_sql(['LOWER(name) = LOWER(?) AND context = ?', as_8bit_ascii(unicode_downcase(tag)), context])
+          else
+            sanitize_sql(['LOWER(name) = LOWER(?)', as_8bit_ascii(unicode_downcase(tag))])
+          end
         end
       end
     end
